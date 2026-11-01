@@ -1,0 +1,31 @@
+name: Verificar firmware y repositorio
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'PyYAML>=6,<7' 'esphome==2026.10.1'
+      - name: Pruebas de estructura
+        run: python -m unittest discover -s tests -v
+      - name: Crear secretos ficticios para CI
+        run: cp firmware/secrets.ci.yaml firmware/secrets.yaml
+      - name: Validar sintaxis y configuracion ESPHome
+        run: esphome config firmware/ir_multimarca_lab.yaml
+
+# No se compila ni se publica ningun firmware con credenciales reales en Actions.
