@@ -1,0 +1,29 @@
+
+# Credenciales privadas
+secrets.yaml
+**/secrets.yaml
+*.env
+.env*
+
+# ESPHome / compilaciones
+.esphome/
+**/.esphome/
+.pioenvs/
+.piolibdeps/
+*.bin
+*.elf
+*.map
+*.hex
+*.uf2
+firmware/build/
+
+# Python y editores
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
