@@ -1,0 +1,25 @@
+name: Informe de problema
+description: Reportar un error sin compartir secretos
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del problema
+      description: No adjuntes secrets.yaml, credenciales, IP pública ni binarios privados.
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Revisión de placa ESP32
+      placeholder: ESP32E-N4 / otra / desconocida
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs redactados (sin datos privados)
