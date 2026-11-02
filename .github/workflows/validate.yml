@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: Obtener codigo
         uses: actions/checkout@v5
@@ -25,13 +25,17 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Crear secretos ficticios para CI
         run: cp firmware/secrets.ci.yaml firmware/secrets.yaml
-      - name: Validar sintaxis y configuracion ESPHome
+      - name: Validar V0.1
         run: esphome config firmware/ir_multimarca_lab.yaml
-      - name: Compilar firmware ESPHome V0.1
+      - name: Compilar V0.1
         run: esphome compile firmware/ir_multimarca_lab.yaml
-      - name: Validar firmware Mirage V0.2
+      - name: Validar V0.2 Mirage
         run: esphome config firmware/ir_mirage_magnum22_v02.yaml
-      - name: Compilar firmware Mirage V0.2
+      - name: Compilar V0.2 Mirage
         run: esphome compile firmware/ir_mirage_magnum22_v02.yaml
+      - name: Validar V0.3 multimarca
+        run: esphome config firmware/ir_multimarca_v03.yaml
+      - name: Compilar V0.3 multimarca
+        run: esphome compile firmware/ir_multimarca_v03.yaml
 
-# Los binarios generados son SOLO de CI, con credenciales ficticias, y no se publican.
+# Binarios solo para CI, credenciales ficticias; no subir .bin a Releases.
