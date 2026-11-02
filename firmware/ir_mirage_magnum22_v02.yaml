@@ -1,0 +1,135 @@
+# Control IR Multimarca - v0.2.0-alpha.1 (prueba Mirage Magnum 22)
+# CONTROL MIDEA IR: encendido, consigna y apagado validados por usuario en Mirage Magnum 22; otros comandos pendientes.
+# GPIO4/14/21: pinout provisional de la revisión ESP32E-N4 estudiada.
+# Cambia los secretos antes de compilar. NO compartas firmware con secretos embebidos.
+substitutions:
+  device_name: control-ir-multimarca-lab
+  friendly_name: Control IR Multimarca LAB
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "Control IR Midea validado: encendido, temperatura y apagado en Mirage Magnum 22"
+  project:
+    name: abel-smart-home.control_ir_multimarca
+    version: "0.2.0-alpha.1"
+
+esp32:
+  board: esp32dev
+  # Para V0.1 se usa Arduino, preparando la futura integración IRremoteESP8266.
+  framework:
+    type: arduino
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  # Sin HA el módulo sigue encendido y accesible por Wi-Fi / web.
+  reboot_timeout: 0s
+
+# OTA nativa cifrada con la misma clave privada del bloque api.encryption.
+# Requiere firmware ESPHome >= 2026.9.0 ya instalado, como en esta tarjeta.
+# La vía web_server es una alternativa de recuperación local: funciona por HTTP.
+ota:
+  - platform: esphome
+    encryption:
+  - platform: web_server
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # El AP de rescate entra en funcionamiento si la red configurada no responde.
+  ap:
+    ssid: "Control-IR-LAB-Rescate"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 2
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+
+# Alimentación del circuito IR en la revisión de hardware estudiada.
+switch:
+  - platform: gpio
+    id: ir_power
+    pin: GPIO21
+    internal: true
+    restore_mode: ALWAYS_ON
+
+remote_transmitter:
+  id: ir_tx
+  pin: GPIO4
+  carrier_duty_percent: 50%
+  rmt_symbols: 256
+
+remote_receiver:
+  id: ir_rx
+  pin:
+    number: GPIO14
+    inverted: true
+  # Se reduce la decodificación excesiva de dump: all para evitar bloqueos del loop.
+  dump: [midea, coolix]
+  tolerance: 55%
+  rmt_symbols: 256
+
+# Primera entidad A/C: protocolo Midea validado para encendido, consigna y apagado en la unidad de prueba.
+# Importante: no agregamos sensor de ambiente ficticio. Sólo se muestra consigna.
+# Para un equipo real con calefacción habilitada, validar primero y cambiar supports_heat.
+climate:
+  - platform: midea_ir
+    id: mirage_magnum22_climate
+    name: "Mirage Magnum 22 (pruebas)"
+    transmitter_id: ir_tx
+    receiver_id: ir_rx
+    use_fahrenheit: false
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+# Solo prueba de emisor. La secuencia NEC es de laboratorio y NO es un comando A/C.
+# Puede afectar algún otro equipo IR cercano: despeja el área antes de activarla.
+button:
+  - platform: template
+    name: "Enviar IR de prueba (NEC)"
+    icon: mdi:remote
+    entity_category: diagnostic
+    on_press:
+      - logger.log: "Prueba NEC solicitada: NO implica recepción del aire acondicionado"
+      - remote_transmitter.transmit_nec:
+          transmitter_id: ir_tx
+          address: 0x00FF
+          command: 0x00FF
+
+  - platform: restart
+    name: "Reiniciar controlador IR"
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Dispositivo en línea"
+    entity_category: diagnostic
+
+sensor:
+  - platform: wifi_signal
+    name: "Señal Wi-Fi"
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: "Tiempo encendido"
+    update_interval: 60s
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "Dirección IP"
+      entity_category: diagnostic
+  - platform: version
+    name: "Versión ESPHome"
+    entity_category: diagnostic
