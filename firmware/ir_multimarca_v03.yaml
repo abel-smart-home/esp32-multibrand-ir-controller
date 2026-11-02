@@ -177,17 +177,17 @@ climate:
           const std::string profile = id(ir_profile).current_option();
           esphome::climate::Climate *backend = nullptr;
           if (profile == "Mirage Magnum 22 - Midea" || profile == "Midea generico (experimental)") {
-            backend = &id(ir_midea);
+            backend = id(ir_midea);
           } else if (profile == "Coolix (experimental)") {
-            backend = &id(ir_coolix);
+            backend = id(ir_coolix);
           } else if (profile == "Gree generico (experimental)") {
-            backend = &id(ir_gree);
+            backend = id(ir_gree);
           } else if (profile == "LG generico (experimental)") {
-            backend = &id(ir_lg);
+            backend = id(ir_lg);
           } else if (profile == "Daikin generico (experimental)") {
-            backend = &id(ir_daikin);
+            backend = id(ir_daikin);
           } else if (profile == "Mitsubishi generico (experimental)") {
-            backend = &id(ir_mitsubishi);
+            backend = id(ir_mitsubishi);
           }
           if (backend == nullptr) {
             ESP_LOGE("ir_router", "Perfil sin motor: %s", profile.c_str());

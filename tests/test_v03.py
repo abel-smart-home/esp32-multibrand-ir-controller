@@ -72,6 +72,13 @@ class MultibrandV03Tests(unittest.TestCase):
         self.assertIn('Probar perfil: frío 24 °C', raw)
         self.assertNotIn('external_components:', raw)
 
+    def test_backend_pointer_assignments_cpp(self):
+        # ESPHome id(climate) ya devuelve un puntero Climate*; &id produce Climate**.
+        router = self.doc['climate'][-1]['on_control'][0]['lambda']
+        self.assertNotIn('backend = &id(', router)
+        for backend in self.doc['climate'][:-1]:
+            self.assertIn(f"backend = id({backend['id']});", router)
+
     def test_secret_files_stay_excluded(self):
         self.assertIn('**/secrets.yaml', (ROOT/'.gitignore').read_text(encoding='utf-8'))
 
