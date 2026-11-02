@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Obtener codigo
         uses: actions/checkout@v4
@@ -27,7 +27,11 @@ jobs:
         run: cp firmware/secrets.ci.yaml firmware/secrets.yaml
       - name: Validar sintaxis y configuracion ESPHome
         run: esphome config firmware/ir_multimarca_lab.yaml
-      - name: Compilar firmware ESPHome
-        run: esphome compile firmware/ir_multimarca_lab.yaml  
+      - name: Compilar firmware ESPHome V0.1
+        run: esphome compile firmware/ir_multimarca_lab.yaml
+      - name: Validar firmware Mirage V0.2
+        run: esphome config firmware/ir_mirage_magnum22_v02.yaml
+      - name: Compilar firmware Mirage V0.2
+        run: esphome compile firmware/ir_mirage_magnum22_v02.yaml
 
-# No se compila ni se publica ningun firmware con credenciales reales en Actions.
+# Los binarios generados son SOLO de CI, con credenciales ficticias, y no se publican.
