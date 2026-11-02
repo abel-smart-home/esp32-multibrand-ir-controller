@@ -1,5 +1,19 @@
 # Historial de cambios
 
+## [0.3.0-alpha.2] — Candidato pendiente de validación CI
+
+### Cambios
+- Se elimina el duplicado de Mirage Magnum 22 en el selector: solo Midea, verificado con ese minisplit.
+- Nuevos protocolos experimentales de ESPHome HeatpumpIR: AUX/aux, Carrier/carrier_mca, Hisense/hisense_aud, Samsung/samsung_aqv.
+- Se agregan Mabe, Duventus, General Electric y York como **sin protocolo confirmado**, sin emisión IR.
+- Selector renombrado a `Perfil IR multimarca` para impedir que los índices guardados de la alfa anterior seleccionen un protocolo incorrecto tras reordenar opciones.
+- `climate.template` no optimista: no anuncia encendido cuando el perfil no tiene motor IR.
+- Pruebas estáticas actualizadas, documentación de marcas y protocolo.
+
+### Pendiente
+- Validación y compilación completas en GitHub Actions y pruebas físicas de las nuevas variantes.
+
+
 ## [0.3.0-alpha.1] — Candidato (no publicado)
 
 ### Añadido

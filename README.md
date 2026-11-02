@@ -22,6 +22,15 @@ El selector presenta 7 perfiles/opciones: Mirage Magnum 22/Midea (probado en V0.
 - En esta alfa sólo se habilitan **COOL/OFF** y consigna 17–30 °C. Ventilador, calor, aletas y recepción/sincronización de mando quedan pendientes.
 - No se ha integrado IRremoteESP8266: esta alpha usa únicamente protocolos **nativos de ESPHome**. El futuro motor C++ se evaluará después de comprobar la experiencia y el tamaño del firmware.
 
+
+## Actualización V0.3.0-alpha.2 — más marcas y perfiles
+
+La versión previa (`v0.3.0-alpha.1`) ya se publicó como pre-release. Esta revisión candidata elimina el perfil duplicado **Mirage Magnum 22 - Midea**: ahora se utiliza únicamente **Midea**, que se probó con el Mirage Magnum 22. El selector se llama **Perfil IR multimarca**; al migrar, inicia en Midea para evitar que los índices guardados de la versión anterior apunten por error a otro protocolo, y luego vuelve a persistir el perfil seleccionado.
+
+Se incorporan perfiles experimentales **AUX / aux, Carrier / carrier_mca, Hisense / hisense_aud y Samsung / samsung_aqv** con el componente HeatpumpIR de ESPHome. También se muestran **Mabe, Duventus, General Electric y York** como **sin protocolo confirmado**: seleccionarlas no transmite ninguna señal infrarroja. Ninguna marca garantiza compatibilidad por sí sola con todos sus modelos.
+
+La única entidad `climate` sigue siendo `Aire acondicionado IR Multimarca`, con estado solicitado y no confirmado por el minisplit. Ver [`docs/MARCAS_Y_PROTOCOLOS.md`](docs/MARCAS_Y_PROTOCOLOS.md) y [`docs/INSTALACION_V03_ALPHA2.md`](docs/INSTALACION_V03_ALPHA2.md). Validación y compilación en GitHub Actions **pendientes antes de instalar**.
+
 ## Instalación V0.3 (después de pasar CI)
 
 1. Conserva una copia del YAML actual V0.2. No borres [`firmware/ir_mirage_magnum22_v02.yaml`](firmware/ir_mirage_magnum22_v02.yaml).

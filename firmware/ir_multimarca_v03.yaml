@@ -1,4 +1,4 @@
-# Control IR Multimarca - v0.3.0-alpha.1
+# Control IR Multimarca - v0.3.0-alpha.2
 # Selección persistente de perfil SIN recompilar dentro de los perfiles incluidos.
 # Midea validado (Mirage Magnum 22: encender, consigna y apagar).
 # Otros perfiles EXPERIMENTALES, no verificados en hardware.
@@ -10,10 +10,10 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  comment: "Router IR seleccionable: Midea validado, otros perfiles experimentales"
+  comment: "Perfiles IR: Midea validado, otros experimentales o sin protocolo"
   project:
     name: abel-smart-home.control_ir_multimarca
-    version: "0.3.0-alpha.1"
+    version: "0.3.0-alpha.2"
 
 esp32:
   board: esp32dev
@@ -77,20 +77,28 @@ remote_receiver:
 select:
   - platform: template
     id: ir_profile
-    name: "Perfil infrarrojo"
+    name: "Perfil IR multimarca"
+    # Cambio de object_id: evita interpretar indices guardados de la alfa.1 con la lista nueva.
     entity_category: config
     icon: mdi:air-conditioner
     optimistic: true
     restore_value: true
-    initial_option: "Mirage Magnum 22 - Midea"
+    initial_option: "Midea"
     options:
-      - "Mirage Magnum 22 - Midea"
-      - "Midea generico (experimental)"
+      - "Midea"
       - "Coolix (experimental)"
       - "Gree generico (experimental)"
       - "LG generico (experimental)"
       - "Daikin generico (experimental)"
       - "Mitsubishi generico (experimental)"
+      - "AUX - aux (experimental)"
+      - "Carrier - MCA (experimental)"
+      - "Hisense - AUD (experimental)"
+      - "Samsung - AQV (experimental)"
+      - "Mabe (sin protocolo confirmado)"
+      - "Duventus (sin protocolo confirmado)"
+      - "General Electric (sin protocolo confirmado)"
+      - "York (sin protocolo confirmado)"
     on_value:
       # No hay comandos IR aquí: cambiar de perfil no debe encender equipos.
       - climate.template.publish:
@@ -155,11 +163,67 @@ climate:
     supports_heat: false
     supports_heat_cool: false
 
+  # Protocolos con soporte de Arduino-HeatpumpIR en ESPHome 2026.10.1.
+  # Ninguna de estas variantes ha sido validada en los equipos del usuario.
+  # Cada motor es interno y comparte el emisor; solo se utiliza el perfil seleccionado.
+  - platform: heatpumpir
+    id: ir_aux
+    internal: true
+    transmitter_id: ir_tx
+    protocol: aux
+    horizontal_default: middle
+    vertical_default: auto
+    min_temperature: 17
+    max_temperature: 30
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: heatpumpir
+    id: ir_carrier_mca
+    internal: true
+    transmitter_id: ir_tx
+    protocol: carrier_mca
+    horizontal_default: middle
+    vertical_default: auto
+    min_temperature: 17
+    max_temperature: 30
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: heatpumpir
+    id: ir_hisense_aud
+    internal: true
+    transmitter_id: ir_tx
+    protocol: hisense_aud
+    horizontal_default: middle
+    vertical_default: auto
+    min_temperature: 17
+    max_temperature: 30
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: heatpumpir
+    id: ir_samsung_aqv
+    internal: true
+    transmitter_id: ir_tx
+    protocol: samsung_aqv
+    horizontal_default: middle
+    vertical_default: auto
+    min_temperature: 17
+    max_temperature: 30
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
   # UNICA entidad climate visible. No restablecer estado ON en el arranque.
   - platform: template
     id: ir_frontend
     name: "Aire acondicionado IR Multimarca"
-    optimistic: true
+    optimistic: false
+    # Publicamos el estado solo si existe un protocolo que acepte la orden.
     restore_mode: NO_RESTORE
     initial_state:
       mode: "OFF"
@@ -176,7 +240,7 @@ climate:
           // Callback ejecutado ante una orden del usuario, NO al arrancar ni elegir perfil.
           const std::string profile = id(ir_profile).current_option();
           esphome::climate::Climate *backend = nullptr;
-          if (profile == "Mirage Magnum 22 - Midea" || profile == "Midea generico (experimental)") {
+          if (profile == "Midea") {
             backend = id(ir_midea);
           } else if (profile == "Coolix (experimental)") {
             backend = id(ir_coolix);
@@ -188,9 +252,17 @@ climate:
             backend = id(ir_daikin);
           } else if (profile == "Mitsubishi generico (experimental)") {
             backend = id(ir_mitsubishi);
+          } else if (profile == "AUX - aux (experimental)") {
+            backend = id(ir_aux);
+          } else if (profile == "Carrier - MCA (experimental)") {
+            backend = id(ir_carrier_mca);
+          } else if (profile == "Hisense - AUD (experimental)") {
+            backend = id(ir_hisense_aud);
+          } else if (profile == "Samsung - AQV (experimental)") {
+            backend = id(ir_samsung_aqv);
           }
           if (backend == nullptr) {
-            ESP_LOGE("ir_router", "Perfil sin motor: %s", profile.c_str());
+            ESP_LOGW("ir_router", "Perfil sin protocolo confirmado: %s (NO transmite IR)", profile.c_str());
             return;
           }
 
@@ -199,19 +271,25 @@ climate:
             ESP_LOGW("ir_router", "Modo no soportado; se descarta la orden");
             return;
           }
-          // Mover la consigna estando apagado NO envía un comando de encendido.
-          if (mode == climate::CLIMATE_MODE_OFF && !x.get_mode().has_value()) {
-            ESP_LOGI("ir_router", "Consigna preparada con control apagado; sin TX");
-            return;
-          }
           float target = x.get_target_temperature().value_or(id(ir_frontend).target_temperature);
           if (!std::isfinite(target)) target = 24.0f;
           target = std::max(17.0f, std::min(30.0f, target));
+          // Consigna estando apagado: solo actualizar interfaz, nunca transmitir.
+          if (mode == climate::CLIMATE_MODE_OFF && !x.get_mode().has_value()) {
+            id(ir_frontend).target_temperature = target;
+            id(ir_frontend).publish_state();
+            ESP_LOGI("ir_router", "Consigna preparada con control apagado; sin TX");
+            return;
+          }
           auto command = backend->make_call();
           command.set_mode(mode);
           if (mode != climate::CLIMATE_MODE_OFF) command.set_target_temperature(target);
           ESP_LOGI("ir_router", "Orden IR: perfil=%s modo=%d consigna=%.1f", profile.c_str(), (int)mode, target);
           command.perform();
+          // Estado solicitado, no confirmado por el A/C. No publicar ON si faltó motor.
+          id(ir_frontend).mode = mode;
+          id(ir_frontend).target_temperature = target;
+          id(ir_frontend).publish_state();
 
 button:
   - platform: template
