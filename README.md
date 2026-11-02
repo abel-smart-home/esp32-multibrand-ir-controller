@@ -1,78 +1,58 @@
-# Control IR Multimarca para ESP32 + Home Assistant
+# ESP32 Multibrand IR Controller + Home Assistant
 
-**Versión publicada:** `v0.1.0-alpha.1`. **Nueva V0.2 candidata:** encendido, ajustes de temperatura y apagado confirmados físicamente en Mirage Magnum 22. Pendiente CI del nuevo commit y publicación como pre-release.
+Controlador de aire acondicionado por infrarrojos con ESPHome, destinado a un ESP32-WROOM-32E con transmisor/receptor IR. **Fuente de la verdad:** https://github.com/abel-smart-home/esp32-multibrand-ir-controller
 
-Proyecto para convertir un módulo ESP32 con emisor/receptor infrarrojo en un controlador de aire acondicionado **multimarca**, configurable desde Home Assistant, conservando el perfil seleccionado tras reinicios y sin recompilar para cambiar entre protocolos incluidos.
+## Estado de versiones
 
-> **Importante:** `firmware/ir_multimarca_lab.yaml` sigue siendo la referencia V0.1. La V0.2 incorpora `climate` mediante `midea_ir` en `firmware/ir_mirage_magnum22_v02.yaml`; el usuario confirmó que funciona para encender, modificar la temperatura y apagar su Mirage Magnum 22. Aún faltan pruebas de recepción del mando, modos adicionales, reinicios y OTA cifrada. La selección de marca/modelo sin recompilar corresponde a una versión posterior.
+- **v0.1.0-alpha.1:** validación del hardware IR, Wi-Fi, API/OTA y diagnósticos.
+- **v0.2.0-alpha.1:** entidad `climate` Midea. Probados sobre **Mirage Inverter Magnum 22** encendido, cambio de temperatura y apagado. Documento de hardware: [`docs/MIRAGE_MAGNUM22.md`](docs/MIRAGE_MAGNUM22.md).
+- **v0.3.0-alpha.1 (CANDIDATO, NO PUBLICADO):** router multimarca con selector persistente desde Home Assistant y motor IR seleccionado en tiempo de ejecución. **Faltan validación CI/compilación y pruebas físicas.**
 
-## Hardware inicial
+## V0.3 experimental: sin recompilar para cambiar de perfil
 
-- Módulo ESP32-WROOM-32E con USB-C y transmisor/receptor IR integrado.
-- GPIO4: emisor IR; GPIO14 invertido: receptor IR; GPIO21: alimentación del circuito IR **según una revisión publicada por la comunidad**. Pueden cambiar en otras revisiones.
-- USB-C podría ser únicamente alimentación; no asumir que sirve para flasheo serial.
+Archivo nuevo: [`firmware/ir_multimarca_v03.yaml`](firmware/ir_multimarca_v03.yaml).
 
-![Estado](https://img.shields.io/badge/fase-pruebas%20v0.2-orange)
+**Una entidad `climate` visible** (`Aire acondicionado IR Multimarca`) y un `select` (`Perfil infrarrojo`) visible en Home Assistant. En V0.3 se compilan varios motores ESPHome como entidades internas: `midea_ir`, `coolix`, `gree` (`generic`), `climate_ir_lg`, `daikin` y `mitsubishi`.
 
-## Funciones de V0.1 (base de laboratorio)
+El selector presenta 7 perfiles/opciones: Mirage Magnum 22/Midea (probado en V0.2), Midea genérico, Coolix, Gree genérico, LG genérico, Daikin genérico y Mitsubishi genérico. **Los demás son EXPERIMENTALES y no garantizan compatibilidad con cualquier aire de esa marca.**
 
-- Firmware ESPHome `firmware/ir_multimarca_lab.yaml` (ESP32 clásico con framework Arduino).
-- Conexión Wi-Fi, API nativa cifrada con Home Assistant y OTA de ESPHome.
-- Portal web local con autenticación y OTA web (solo red local confiable).
-- Acceso Wi-Fi de rescate si pierde red.
-- Receptor IR con decodificación en registros (`dump: all`).
-- Botón de Home Assistant para transmitir **una trama NEC de prueba**, no un comando de aire acondicionado.
-- Diagnósticos de Wi-Fi, IP, tiempo encendido, ESPHome y estado en línea.
-- Ejemplos de secretos privados y herramienta para generarlos.
-- Pruebas de estructura y validación de configuración por GitHub Actions.
+- Cambiar de perfil **no exige recompilar** entre los protocolos incluidos, y su elección se guarda en flash.
+- Cambiar de perfil **no manda IR**. Para cambiar de un aire a otro, **apaga antes el aire anterior**.
+- El `climate` comienza en OFF tras un reinicio, sin reenviar órdenes; el estado mostrado es solicitado/inferido, no confirmado.
+- En esta alfa sólo se habilitan **COOL/OFF** y consigna 17–30 °C. Ventilador, calor, aletas y recepción/sincronización de mando quedan pendientes.
+- No se ha integrado IRremoteESP8266: esta alpha usa únicamente protocolos **nativos de ESPHome**. El futuro motor C++ se evaluará después de comprobar la experiencia y el tamaño del firmware.
 
-## Instalación inicial V0.1 (conservada como referencia)
+## Instalación V0.3 (después de pasar CI)
 
-1. Descomprime o clona el repositorio.
-2. Instala Python 3 si vas a usar el generador y ejecuta `python tools/generar_secrets.py`; edita `firmware/secrets.yaml` con la red **Wi-Fi de 2.4 GHz** y su contraseña reales. Alternativamente, copia `firmware/secrets.example.yaml` y reemplaza todas las claves (API requiere 32 bytes codificados en base64).
-3. En el complemento **ESPHome Device Builder**, crea un dispositivo basado en ESP32 `esp32dev` e introduce el contenido de `firmware/ir_multimarca_lab.yaml`. Asegúrate de que las claves `!secret` existan en el `secrets.yaml` del directorio donde compile ESPHome.
-4. Valida y compila. La primera carga al firmware original depende de si su portal de actualizaciones acepta el `.bin` OTA generado; **no uses Factory Image en un portal OTA**. Consulta [Instalación y recuperación](docs/INSTALACION.md).
-5. Agrega el dispositivo detectado a Home Assistant desde la integración ESPHome. Observa los logs con el control remoto original apuntando a la placa, luego prueba una transmisión NEC con otros aparatos IR alejados.
-6. Registra los resultados en [Plan de pruebas](docs/PRUEBAS.md) antes de calificar la validación como completa.
+1. Conserva una copia del YAML actual V0.2. No borres [`firmware/ir_mirage_magnum22_v02.yaml`](firmware/ir_mirage_magnum22_v02.yaml).
+2. En ESPHome Device Builder abre tu dispositivo existente **Control IR Multimarca LAB** (el mismo nombre/host `control-ir-multimarca-lab`).
+3. Sustituye el YAML de V0.2 por el de V0.3. **No cambies** tus secretos privados; se siguen usando `wifi_ssid`, `wifi_password`, `api_encryption_key`, `fallback_ap_password`, `web_username`, `web_password`.
+4. Ejecuta `Validate` y luego `Install → Wirelessly`. Si falla, consulta el log completo: el YAML de V0.2 continúa disponible para recuperación OTA.
+5. Abre Home Assistant y confirma que aparezcan `Aire acondicionado IR Multimarca` y `Perfil infrarrojo`. Puede permanecer la entidad histórica Mirage de V0.2 como huérfana; revisa la integración antes de eliminarla.
+6. Mantén el perfil `Mirage Magnum 22 - Midea` y prueba COOL 24, bajar/subir temperatura y OFF con el aire real.
+7. Cambia a otro perfil **sólo sin dirigir el IR a equipos en uso** y confirma que el selector no transmita al cambiar ni al reiniciar.
+8. Apaga/enciende el ESP32 y confirma que la selección persista, sin órdenes IR automáticas.
+9. Anota resultados en [`docs/PRUEBAS_V03.md`](docs/PRUEBAS_V03.md).
 
-**No se incluyen claves Wi-Fi ni archivos `.bin` compilados.** No publiques `secrets.yaml` ni un firmware compilado con tus credenciales. El repositorio no contiene ningún `external_components` ficticio; el componente propio comenzará tras validar la placa.
+**No publiques** `secrets.yaml` ni archivos `.bin` compilados con claves privadas. La vía web OTA usa HTTP local y no debe exponerse a Internet.
+
+## Hardware y compatibilidad
+
+GPIO4: transmisor; GPIO14 invertido: receptor; GPIO21: alimentación del circuito IR. Confirmados funcionalmente para el prototipo del proyecto, aunque otras revisiones de la tarjeta pueden variar. USB-C puede ser sólo alimentación.
+
+V0.3 **no es todavía un producto universal**. La selección cambia únicamente el protocolo, no aprende códigos desconocidos. Requiere línea de visión con el A/C y no dispone de retorno de estado confirmado.
 
 ## Documentación
 
-- [Arquitectura y versiones](docs/ARQUITECTURA.md)
-- [Hardware y pinout](docs/HARDWARE.md)
-- [Instalación, primer flasheo y recuperación](docs/INSTALACION.md)
-- [Plan de pruebas](docs/PRUEBAS.md)
-- [Guía para GitHub, commits y pre-release](docs/GITHUB.md)
-- [Texto de publicación de la alpha](docs/RELEASE_NOTES_v0.1.0-alpha.1.md)
-- [Changelog](CHANGELOG.md)
+- [`docs/ARQUITECTURA_V03.md`](docs/ARQUITECTURA_V03.md): arquitectura del router y sus límites.
+- [`docs/PRUEBAS_V03.md`](docs/PRUEBAS_V03.md): checklist V0.3.
+- [`docs/RELEASE_NOTES_v0.3.0-alpha.1.md`](docs/RELEASE_NOTES_v0.3.0-alpha.1.md): notas de pre-release candidatas.
+- [`docs/PRUEBAS_V02.md`](docs/PRUEBAS_V02.md): pruebas Mirage V0.2.
+- [`docs/INSTALACION.md`](docs/INSTALACION.md): primer flasheo y recuperación.
+- [`CHANGELOG.md`](CHANGELOG.md): versiones.
 
-## Candidato V0.2 probado parcialmente en Mirage Magnum 22
+## Licencia
 
-- Archivo nuevo: [`firmware/ir_mirage_magnum22_v02.yaml`](firmware/ir_mirage_magnum22_v02.yaml).
-- Protocolo: **Midea IR**, con encendido, cambio de temperatura y apagado confirmados por el usuario en hardware real.
-- Actualizar el mismo dispositivo ESPHome por OTA, **sin crear otro dispositivo**. Esta revisión recomienda OTA nativa cifrada con la clave API que ya funciona; revisar `docs/PRUEBAS_V02.md` antes de hacer la transición.
-- [`docs/MIRAGE_MAGNUM22.md`](docs/MIRAGE_MAGNUM22.md), [`docs/PRUEBAS_V02.md`](docs/PRUEBAS_V02.md) y [`docs/RELEASE_NOTES_v0.2.0-alpha.1.md`](docs/RELEASE_NOTES_v0.2.0-alpha.1.md).
-- Mantener [`firmware/ir_multimarca_lab.yaml`](firmware/ir_multimarca_lab.yaml) como recuperación.
+Código propio: MIT (`LICENSE`). Se utilizan componentes incluidos en ESPHome, conforme a sus respectivas licencias. No se distribuye IRremoteESP8266 ni código derivado de esa biblioteca en la V0.3.
 
-## Alcance futuro
-
-- V0.2: entidad `climate` con encendido, temperatura y apagado confirmados para Mirage Magnum 22; pendiente completar pruebas para cerrar esta etapa.
-- V0.3: catálogo/selector persistente de marcas y variantes desde Home Assistant; motor IR basado en IRremoteESP8266, sujeto a compatibilidad en compilación y pruebas.
-- V1.0: estabilidad, recuperación de estados, diagnósticos y catálogo verificado.
-
-Los comandos IR suelen ser unidireccionales: Home Assistant mostrará **estado solicitado o inferido**, no confirmación del A/C.
-
-## Atribuciones y licencia
-
-- Proyecto propio bajo licencia MIT (consulta `LICENSE`).
-- **ESPHome** y **IRremoteESP8266** son proyectos de terceros; este paquete **no incluye** código de IRremoteESP8266. Antes de incorporarlo en una versión distribuible se revisarán y cumplirán sus licencias.
-- Los pines y la ruta OTA del firmware de fábrica están basados en experiencias comunitarias, sin garantía de reproducirse exactamente en todas las placas.
-
-Referencias:
-- ESPHome RX: https://esphome.io/components/remote_receiver/
-- ESPHome TX: https://esphome.io/components/remote_transmitter/
-- ESPHome OTA web: https://esphome.io/components/ota/web_server/
-- ESPHome framework: https://esphome.io/components/esp32/
-- Comunidad, revisión de la placa: https://community.home-assistant.io/t/solution-esp32-infrared-wifi-module-esp32e-n4-infrared-transmitter-receiver-correct-pinout-for-esphome/1003067
-- IRremoteESP8266: https://github.com/crankyoldgit/IRremoteESP8266
+Referencias: [ESPHome Template Climate](https://esphome.io/components/climate/template/), [ESPHome Template Select](https://esphome.io/components/select/template/), [ESPHome IR Climate](https://esphome.io/components/climate/climate_ir/).

@@ -1,39 +1,32 @@
 # Historial de cambios
 
-## [0.2.0-alpha.1] - Pendiente de publicar
+## [0.3.0-alpha.1] — Candidato (no publicado)
 
 ### Añadido
-- Entidad `climate` con `midea_ir` para prueba del Mirage Magnum 22.
-- Recepción limitada a Midea y Coolix para reducir logs excesivos.
-- Cifrado obligatorio para OTA nativa usando la clave API existente.
-- Plan de pruebas V0.2 y validación automatizada de ambos firmware.
+- `firmware/ir_multimarca_v03.yaml`: `climate.template` visible + `select.template` persistente.
+- Enrutamiento en tiempo de ejecución a Midea, Coolix, Gree genérico, LG genérico, Daikin genérico y Mitsubishi genérico.
+- 7 opciones seleccionables: Mirage Magnum 22/Midea, Midea genérico y 5 protocolos alternativos.
+- Selector sin transmisión IR, restauración de selección y arranque con modo OFF sin reenvíos.
+- Prueba deliberada COOL 24 °C, plan de pruebas, notas de pre-release y validación CI V0.3.
 
-### Validación en hardware
-- Confirmados encendido, aumento/reducción de consigna y apagado desde Home Assistant.
-- Pendientes sincronización con control original, recuperación tras reinicio y comprobación de OTA cifrada.
+### Alcance y pendientes
+- `COOL/OFF`, consigna 17–30 °C; perfiles alternativos no validados físicamente.
+- La compatibilidad sobre Mirage en esta versión y la compilación CI se deben verificar ANTES de publicar.
+- No incluye biblioteca IRremoteESP8266, aprendizaje ni receptor que sincronice el estado público.
 
-## [0.1.0-alpha.1] - 2026-10-31
+## [0.2.0-alpha.1] — Pre-release publicado
 
 ### Añadido
+- `firmware/ir_mirage_magnum22_v02.yaml`: `midea_ir` + `climate` en Home Assistant.
+- OTA nativa cifrada por clave API y recepción simplificada para Midea/Coolix.
+- Pruebas CI para ambos firmwares V0.1/V0.2.
 
-- Configuración ESPHome de laboratorio para validar el módulo ESP32 IR.
-- Pinout provisional GPIO21/4/14, logs de recepción y botón NEC de prueba.
-- API cifrada, OTA, web autenticada, AP de rescate y diagnósticos.
-- Generador local de claves y exclusión de secretos en Git.
-- Documentación de instalación, arquitectura, plan de pruebas, commits y publicación.
-- Validaciones automáticas de configuración y estructura mediante GitHub Actions.
+### Pruebas en hardware
+- Encendido, ajuste ascendente/descendente de consigna y apagado confirmados en Mirage Inverter Magnum 22.
+- Pendientes: recepción del mando original, modos avanzados y pruebas prolongadas.
 
-### Pendiente
+## [0.1.0-alpha.1] — 2026-10-31
 
-- Compilación y ensayos en el dispositivo real; aún no existe `climate` ni control multimarca.
-
-## [0.2.0-alpha.1] - Candidato no publicado (2026-11-01)
-
-### Agregado
-- Nuevo firmware opcional de prueba Mirage Magnum 22 con `midea_ir` y entidad `climate`.
-- Recepción optimizada para Midea y Coolix, y pruebas de climatización específicas.
-- Ampliación de CI para validar y compilar ambas configuraciones, pendiente de ejecución en GitHub.
-
-### Pendiente
-- Validación física de encendido, apagado, cambio de temperatura y sincronización del control original.
-- Selección multimarca persistente para V0.3.
+### Añadido
+- ESPHome de laboratorio para ESP32 IR, GPIO21/4/14, recepción con registros y trama NEC de prueba.
+- API cifrada, OTA, web autenticada, AP de rescate, diagnósticos, generación local de secretos y CI inicial.

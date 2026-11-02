@@ -1,0 +1,254 @@
+# Control IR Multimarca - v0.3.0-alpha.1
+# Selección persistente de perfil SIN recompilar dentro de los perfiles incluidos.
+# Midea validado (Mirage Magnum 22: encender, consigna y apagar).
+# Otros perfiles EXPERIMENTALES, no verificados en hardware.
+# NO usar en paralelo con otro firmware: reemplaza el YAML del MISMO dispositivo ESPHome.
+substitutions:
+  device_name: control-ir-multimarca-lab
+  friendly_name: Control IR Multimarca LAB
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "Router IR seleccionable: Midea validado, otros perfiles experimentales"
+  project:
+    name: abel-smart-home.control_ir_multimarca
+    version: "0.3.0-alpha.1"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    encryption:
+  - platform: web_server
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Control-IR-LAB-Rescate"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 2
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+
+# GPIO confirmados funcionalmente para la unidad de prueba (V0.1/0.2).
+switch:
+  - platform: gpio
+    id: ir_power
+    pin: GPIO21
+    internal: true
+    restore_mode: ALWAYS_ON
+
+remote_transmitter:
+  id: ir_tx
+  pin: GPIO4
+  carrier_duty_percent: 50%
+  rmt_symbols: 256
+
+# Recepción diagnóstica. En V0.3 no se infiere el estado del A/C a partir del mando original.
+remote_receiver:
+  id: ir_rx
+  pin:
+    number: GPIO14
+    inverted: true
+  dump: [midea, coolix]
+  tolerance: 55%
+  rmt_symbols: 256
+
+# Selección guardada en NVS/flash por ESPHome. No transmitir al seleccionar/restaurar.
+select:
+  - platform: template
+    id: ir_profile
+    name: "Perfil infrarrojo"
+    entity_category: config
+    icon: mdi:air-conditioner
+    optimistic: true
+    restore_value: true
+    initial_option: "Mirage Magnum 22 - Midea"
+    options:
+      - "Mirage Magnum 22 - Midea"
+      - "Midea generico (experimental)"
+      - "Coolix (experimental)"
+      - "Gree generico (experimental)"
+      - "LG generico (experimental)"
+      - "Daikin generico (experimental)"
+      - "Mitsubishi generico (experimental)"
+    on_value:
+      # No hay comandos IR aquí: cambiar de perfil no debe encender equipos.
+      - climate.template.publish:
+          id: ir_frontend
+          mode: "OFF"
+          target_temperature: 24.0
+      - logger.log:
+          format: "Perfil seleccionado: %s (no se envio ninguna orden IR)"
+          args: ['x.c_str()']
+
+# Todos los motores se compilan una sola vez; sólo el seleccionado recibe órdenes.
+# Son internos para que HA muestre una única entidad de climatización.
+# Sin receiver_id: no sincronizamos estados incompletos de mandos ajenos en esta alpha.
+climate:
+  - platform: midea_ir
+    id: ir_midea
+    internal: true
+    transmitter_id: ir_tx
+    use_fahrenheit: false
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: coolix
+    id: ir_coolix
+    internal: true
+    transmitter_id: ir_tx
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: gree
+    id: ir_gree
+    model: generic
+    internal: true
+    transmitter_id: ir_tx
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: climate_ir_lg
+    id: ir_lg
+    internal: true
+    transmitter_id: ir_tx
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: daikin
+    id: ir_daikin
+    internal: true
+    transmitter_id: ir_tx
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  - platform: mitsubishi
+    id: ir_mitsubishi
+    internal: true
+    transmitter_id: ir_tx
+    supports_cool: true
+    supports_heat: false
+    supports_heat_cool: false
+
+  # UNICA entidad climate visible. No restablecer estado ON en el arranque.
+  - platform: template
+    id: ir_frontend
+    name: "Aire acondicionado IR Multimarca"
+    optimistic: true
+    restore_mode: NO_RESTORE
+    initial_state:
+      mode: "OFF"
+      target_temperature: 24.0
+    supported_modes:
+      - "OFF"
+      - COOL
+    visual:
+      min_temperature: 17
+      max_temperature: 30
+      temperature_step: 1
+    on_control:
+      - lambda: |-
+          // Callback ejecutado ante una orden del usuario, NO al arrancar ni elegir perfil.
+          const std::string profile = id(ir_profile).current_option();
+          esphome::climate::Climate *backend = nullptr;
+          if (profile == "Mirage Magnum 22 - Midea" || profile == "Midea generico (experimental)") {
+            backend = &id(ir_midea);
+          } else if (profile == "Coolix (experimental)") {
+            backend = &id(ir_coolix);
+          } else if (profile == "Gree generico (experimental)") {
+            backend = &id(ir_gree);
+          } else if (profile == "LG generico (experimental)") {
+            backend = &id(ir_lg);
+          } else if (profile == "Daikin generico (experimental)") {
+            backend = &id(ir_daikin);
+          } else if (profile == "Mitsubishi generico (experimental)") {
+            backend = &id(ir_mitsubishi);
+          }
+          if (backend == nullptr) {
+            ESP_LOGE("ir_router", "Perfil sin motor: %s", profile.c_str());
+            return;
+          }
+
+          const auto mode = x.get_mode().value_or(id(ir_frontend).mode);
+          if (mode != climate::CLIMATE_MODE_OFF && mode != climate::CLIMATE_MODE_COOL) {
+            ESP_LOGW("ir_router", "Modo no soportado; se descarta la orden");
+            return;
+          }
+          // Mover la consigna estando apagado NO envía un comando de encendido.
+          if (mode == climate::CLIMATE_MODE_OFF && !x.get_mode().has_value()) {
+            ESP_LOGI("ir_router", "Consigna preparada con control apagado; sin TX");
+            return;
+          }
+          float target = x.get_target_temperature().value_or(id(ir_frontend).target_temperature);
+          if (!std::isfinite(target)) target = 24.0f;
+          target = std::max(17.0f, std::min(30.0f, target));
+          auto command = backend->make_call();
+          command.set_mode(mode);
+          if (mode != climate::CLIMATE_MODE_OFF) command.set_target_temperature(target);
+          ESP_LOGI("ir_router", "Orden IR: perfil=%s modo=%d consigna=%.1f", profile.c_str(), (int)mode, target);
+          command.perform();
+
+button:
+  - platform: template
+    name: "Probar perfil: frío 24 °C"
+    entity_category: diagnostic
+    icon: mdi:air-conditioner
+    on_press:
+      # Acción deliberada: envía COOL 24 °C con el perfil elegido.
+      - climate.control:
+          id: ir_frontend
+          mode: COOL
+          target_temperature: 24.0
+
+  - platform: restart
+    name: "Reiniciar controlador IR"
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Dispositivo en línea"
+    entity_category: diagnostic
+
+sensor:
+  - platform: wifi_signal
+    name: "Señal Wi-Fi"
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: "Tiempo encendido"
+    update_interval: 60s
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "Dirección IP"
+      entity_category: diagnostic
+  - platform: version
+    name: "Versión ESPHome"
+    entity_category: diagnostic
